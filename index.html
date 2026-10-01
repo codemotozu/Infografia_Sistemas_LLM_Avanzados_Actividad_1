@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Infografía interactiva: conceptos de LLM, funcionamiento, modelos open source y aplicaciones en banca.">
+<title>LLMs en la Banca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: libro contable — una columna de lectura con "fichas" de tokens; secciones como folios numerados del recorrido texto → modelo → industria */
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --sunk:#E3E8EE; --fg:#14202E; --muted:#556476; --line:#CBD3DD;
+  --accent:#1F4FD8; --accent-ink:#FFFFFF; --token:#F2B321; --token-ink:#2A1E00; --tint:#E4EBFC;
+  --ok:#1E8A55; --warn:#B86A00; --bad:#C23A3A;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E141C; --surface:#16202C; --sunk:#1D2836; --fg:#E6ECF3; --muted:#97A6B8; --line:#2C3A4B;
+  --accent:#7A9DFF; --accent-ink:#0B1530; --token:#F2B321; --token-ink:#2A1E00; --tint:#1C2A4A;
+  --ok:#4CC28A; --warn:#E8A440; --bad:#F07676; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E141C; --surface:#16202C; --sunk:#1D2836; --fg:#E6ECF3; --muted:#97A6B8; --line:#2C3A4B;
+  --accent:#7A9DFF; --accent-ink:#0B1530; --token:#F2B321; --token-ink:#2A1E00; --tint:#1C2A4A;
+  --ok:#4CC28A; --warn:#E8A440; --bad:#F07676; color-scheme:dark}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.6;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:1040px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);line-height:1.1;text-wrap:balance;margin:0}
+h2{font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:800}
+h3{font-size:1.15rem;font-weight:700}
+p{margin:0}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono)}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lead{color:var(--muted);max-width:65ch}
+
+/* nav */
+nav.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px}
+nav.top .wrap{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+nav.top a{flex:none;text-decoration:none;color:var(--fg);font-size:.85rem;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);white-space:nowrap}
+nav.top a:hover{border-color:var(--accent);color:var(--accent)}
+
+/* hero */
+header.hero{padding-block:48px 32px;display:grid;gap:24px}
+.hero h1{font-size:clamp(2.2rem,6vw,4rem);font-weight:800;letter-spacing:-.02em;max-width:18ch}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.85rem;color:var(--muted)}
+.tokenline{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end}
+.chip{font-family:var(--mono);font-size:.95rem;background:var(--token);color:var(--token-ink);border-radius:6px;padding:4px 8px;display:grid;line-height:1.2;text-align:center}
+.chip small{font-size:.62rem;opacity:.7}
+.chip.next{background:transparent;color:var(--accent);border:2px dashed var(--accent)}
+.nextbars{display:grid;gap:6px;max-width:460px}
+.nb{display:grid;grid-template-columns:110px 1fr 48px;gap:10px;align-items:center;font-size:.85rem}
+.nb .bar{height:10px;background:var(--sunk);border-radius:5px;overflow:hidden}
+.nb .bar i{display:block;height:100%;background:var(--accent);border-radius:5px}
+.nb span:last-child{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+
+section{padding-block:44px;border-top:1px solid var(--line);display:grid;gap:22px}
+.sechead{display:grid;gap:8px}
+.folio{font-family:var(--mono);font-size:.8rem;color:var(--accent)}
+
+/* pipeline */
+.pipe{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.step{flex:1 1 150px;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:6px;align-content:start;position:relative}
+.step .n{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+.step b{font-family:var(--display);font-size:1.02rem}
+.step p{font-size:.86rem;color:var(--muted)}
+.step:not(:last-child)::after{content:"→";position:absolute;right:-10px;top:50%;transform:translateY(-50%);color:var(--accent);font-weight:700;background:var(--bg);line-height:1;padding:2px 0}
+@media (max-width:700px){.step:not(:last-child)::after{display:none}}
+
+/* concept cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+details.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0;min-width:0}
+details.card summary{cursor:pointer;list-style:none;padding:16px;display:grid;gap:4px}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+details.card summary .t::after{content:"+";font-family:var(--mono);color:var(--accent);font-size:1.1rem}
+details.card[open] summary .t::after{content:"–"}
+details.card summary small{color:var(--muted);font-size:.86rem}
+details.card .more{padding:0 16px 16px;font-size:.9rem;display:grid;gap:8px}
+details.card .more .ex{background:var(--tint);border-radius:8px;padding:10px;font-size:.85rem}
+details.card[open]{border-color:var(--accent)}
+
+/* simulator */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:18px;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}
+@media (max-width:820px){.sim{grid-template-columns:1fr}}
+.controls{display:grid;gap:16px;align-content:start}
+.ctl{display:grid;gap:4px}
+.ctl label{display:flex;justify-content:space-between;font-weight:600;font-size:.92rem}
+.ctl label output{font-family:var(--mono);color:var(--accent);font-variant-numeric:tabular-nums}
+.ctl small{color:var(--muted);font-size:.8rem}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--sunk);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:.82rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.prompt{font-family:var(--mono);font-size:.9rem;background:var(--sunk);border-radius:8px;padding:10px 12px}
+.prompt b{color:var(--accent)}
+.dist{display:grid;gap:5px}
+.dr{display:grid;grid-template-columns:100px 1fr 52px;gap:8px;align-items:center;font-size:.84rem}
+.dr .w{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dr .bar{height:12px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.dr .bar i{display:block;height:100%;background:var(--accent);transition:width .25s}
+.dr.out .bar i{background:var(--line)}
+.dr.out .w,.dr.out .p{color:var(--muted);text-decoration:line-through}
+.dr.weird .w{color:var(--bad)}
+.dr .p{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.samples{display:flex;flex-wrap:wrap;gap:6px;min-height:32px}
+.samples span{font-family:var(--mono);font-size:.82rem;padding:3px 8px;border-radius:6px;background:var(--tint)}
+.samples span.weird{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.verdict{font-size:.88rem;padding:10px 12px;border-radius:8px;border-left:4px solid var(--ok);background:var(--sunk)}
+.verdict.mid{border-color:var(--warn)} .verdict.hi{border-color:var(--bad)}
+.maxbox{font-size:.88rem;background:var(--sunk);border-radius:8px;padding:10px 12px}
+.maxbox .cut{color:var(--bad);font-family:var(--mono);font-size:.78rem}
+.ptable{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem;min-width:560px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td code{font-family:var(--mono);font-size:.82rem;background:var(--sunk);padding:1px 5px;border-radius:4px}
+
+/* models */
+.callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.callout div{background:var(--tint);border-radius:12px;padding:14px;font-size:.9rem;display:grid;gap:4px}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.filters button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.models{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.model{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;align-content:start;min-width:0}
+.model header{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.model .org{font-size:.8rem;color:var(--muted)}
+.specs{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:.84rem}
+.specs dt{color:var(--muted)} .specs dd{margin:0;font-family:var(--mono);font-size:.8rem}
+.tag{display:inline-block;font-family:var(--mono);font-size:.7rem;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.model p{font-size:.88rem}
+.model a{font-size:.84rem}
+
+/* industry */
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:10px;padding:10px 14px;text-align:left;display:grid;gap:2px;flex:1 1 200px;min-width:0}
+.tabs button small{color:var(--muted);font-size:.78rem}
+.tabs button[aria-selected=true]{border-color:var(--accent);background:var(--tint)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;display:grid;gap:18px}
+.panel .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.panel .cols > div{display:grid;gap:6px;align-content:start;min-width:0}
+.panel h4{margin:0;font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.panel ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:.92rem}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.84rem}
+.flow span{background:var(--sunk);border-radius:6px;padding:4px 9px}
+.flow i{font-style:normal;color:var(--accent)}
+.cfg{display:flex;flex-wrap:wrap;gap:6px}
+.cfg code{font-family:var(--mono);font-size:.8rem;background:var(--tint);color:var(--fg);padding:3px 8px;border-radius:6px}
+.risk{border-left:4px solid var(--warn);padding:8px 12px;background:var(--sunk);border-radius:0 8px 8px 0;font-size:.9rem}
+
+/* practices */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.rule{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:6px;align-content:start}
+.rule .k{font-family:var(--mono);font-size:.72rem;color:var(--bad);letter-spacing:.08em;text-transform:uppercase}
+.rule p{font-size:.9rem;color:var(--muted)}
+
+.links{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.links a{display:grid;gap:2px;text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.links a:hover{border-color:var(--accent)}
+.links a small{color:var(--muted);font-size:.8rem}
+.links a .u{font-family:var(--mono);font-size:.72rem;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+footer{padding-top:28px;border-top:1px solid var(--line);font-size:.82rem;color:var(--muted);display:grid;gap:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<nav class="top" aria-label="Secciones">
+  <div class="wrap">
+    <a href="#que-es">¿Qué es?</a>
+    <a href="#funcionamiento">Funcionamiento</a>
+    <a href="#conceptos">Conceptos</a>
+    <a href="#parametros">Simulador</a>
+    <a href="#opensource">Open source</a>
+    <a href="#banca">Aplicaciones en banca</a>
+    <a href="#riesgos">Riesgos</a>
+    <a href="#recursos">Recursos</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<header class="hero" id="que-es">
+  <div class="eyebrow">Sistemas LLM Avanzados · Unidad 1 · Actividad 1</div>
+  <h1>Un LLM no “sabe” la respuesta: <em>predice el siguiente token</em>.</h1>
+  <p class="lead">Un Large Language Model es una red neuronal de tipo Transformer, entrenada con enormes cantidades de texto, que calcula qué fragmento de texto (token) es más probable que siga. Repitiendo esa predicción miles de veces redacta, resume, clasifica o razona. Esta infografía explica cómo funciona, qué parámetros lo controlan, qué modelos abiertos existen y cómo se aplica en el <strong>sector financiero</strong>.</p>
+  <div class="tokenline" aria-label="Ejemplo de predicción del siguiente token">
+    <div class="eyebrow">Así lo ve el modelo · cada ficha es un token con su ID</div>
+    <div class="chips">
+      <span class="chip">El<small>#4112</small></span>
+      <span class="chip">␣crédito<small>#71836</small></span>
+      <span class="chip">␣fue<small>#11143</small></span>
+      <span class="chip">␣apro<small>#40922</small></span>
+      <span class="chip">bado<small>#9516</small></span>
+      <span class="chip">␣por<small>#4247</small></span>
+      <span class="chip next">¿?<small>siguiente</small></span>
+    </div>
+    <div class="nextbars">
+      <div class="nb"><span class="mono">␣el</span><span class="bar"><i style="width:58%"></i></span><span>0.58</span></div>
+      <div class="nb"><span class="mono">␣un</span><span class="bar"><i style="width:21%"></i></span><span>0.21</span></div>
+      <div class="nb"><span class="mono">␣la</span><span class="bar"><i style="width:14%"></i></span><span>0.14</span></div>
+      <div class="nb"><span class="mono">␣Marte</span><span class="bar"><i style="width:1%"></i></span><span>0.01</span></div>
+    </div>
+    <small class="lead" style="font-size:.8rem">IDs y probabilidades ilustrativos. Cada modelo tiene su propio tokenizador; en español una palabra suele ocupar 1 a 3 tokens.</small>
+  </div>
+  <div class="meta"><span>Universidad de La Salle · Maestría en Inteligencia Artificial</span><span>Estudiante: Carolina Rodríguez Chacón</span><span>Docente: Cristian Camilo Tirado Cifuentes</span><span>Industria: banca y servicios financieros (Colombia)</span></div>
+</header>
+
+<section id="funcionamiento">
+  <div class="sechead">
+    <span class="folio">01 · Funcionamiento</span>
+    <h2>Del texto a la respuesta, en seis pasos</h2>
+    <p class="lead">La arquitectura Transformer (Vaswani et al., 2017, <em>Attention Is All You Need</em>) reemplazó a las redes recurrentes con un mecanismo de atención que mira todo el contexto a la vez. Así fluye una consulta:</p>
+  </div>
+  <div class="pipe">
+    <div class="step"><span class="n">1</span><b>Tokenizar</b><p>El texto se parte en tokens, la unidad mínima, y cada uno recibe un número.</p></div>
+    <div class="step"><span class="n">2</span><b>Embeddings</b><p>Cada token se vuelve un vector. Palabras de significado parecido quedan cerca (rey ↔ reina).</p></div>
+    <div class="step"><span class="n">3</span><b>Posición</b><p>Se suma información de orden: “banco paga cliente” ≠ “cliente paga banco”.</p></div>
+    <div class="step"><span class="n">4</span><b>Atención</b><p>Decenas de capas deciden qué tokens del contexto importan para cada token.</p></div>
+    <div class="step"><span class="n">5</span><b>Softmax</b><p>La salida se convierte en probabilidades para todo el vocabulario.</p></div>
+    <div class="step"><span class="n">6</span><b>Muestreo</b><p>Temperatura y top‑p eligen un token; se agrega al texto y se repite.</p></div>
+  </div>
+  <p class="lead">Como el último paso es probabilístico, la misma pregunta puede dar respuestas distintas. Por eso un LLM no es determinista como una fórmula de Excel, y por eso puede <strong>alucinar</strong>: generar texto fluido pero falso.</p>
+</section>
+
+<section id="conceptos">
+  <div class="sechead">
+    <span class="folio">02 · Conceptos básicos</span>
+    <h2>El vocabulario mínimo</h2>
+    <p class="lead">Toca cada ficha para ver la explicación y un ejemplo del sector financiero.</p>
+  </div>
+  <div class="grid">
+    <details class="card"><summary><span class="t"><h3>Token</h3></span><small>La “moneda” con la que lee, escribe y cobra un LLM.</small></summary>
+      <div class="more"><p>Fragmento de texto (palabra, sílaba o signo). Los límites del modelo y el precio de las API se miden en tokens de entrada y de salida.</p><p class="ex">Un contrato de crédito de 20 páginas puede ocupar decenas de miles de tokens: eso define qué modelo cabe y cuánto cuesta leerlo.</p></div></details>
+    <details class="card"><summary><span class="t"><h3>Ventana de contexto</h3></span><small>Cuánta información “ve” el modelo en una sola consulta.</small></summary>
+      <div class="more"><p>Suma de lo que entra (instrucciones, documentos, historial) y lo que sale. GPT‑3.5 Turbo manejaba 16.385 tokens; varios modelos abiertos actuales llegan a 128 mil, 256 mil o 1 millón.</p><p class="ex">Con ventana grande se puede pasar el reglamento completo de una tarjeta; con ventana pequeña hay que recortar o usar RAG.</p></div></details>
+    <details class="card"><summary><span class="t"><h3>Parámetros y pesos</h3></span><small>Los números que el modelo aprendió al entrenar.</small></summary>
+      <div class="more"><p>Se cuentan en miles de millones (B). Más parámetros suele significar más capacidad, pero también más memoria y costo. Los modelos <em>Mixture of Experts</em> (MoE) activan solo una parte por token.</p><p class="ex">gpt‑oss‑120b tiene 117 B parámetros pero activa unos 5,1 B por token, por eso cabe en una sola GPU de 80 GB.</p></div></details>
+    <details class="card"><summary><span class="t"><h3>Embeddings</h3></span><small>Significado convertido en coordenadas.</small></summary>
+      <div class="more"><p>Vectores donde la cercanía equivale a similitud de significado. Son la base de la búsqueda semántica.</p><p class="ex">“Cobro no reconocido” y “me debitaron algo que no compré” quedan cerca aunque no compartan palabras.</p></div></details>
+    <details class="card"><summary><span class="t"><h3>Atención</h3></span><small>El corazón del Transformer.</small></summary>
+      <div class="more"><p>Cada token calcula cuánto debe “fijarse” en los demás. Varias cabezas de atención capturan relaciones distintas (gramática, entidades, cifras).</p><p class="ex">En “el cliente pagó la cuota, pero ella seguía en mora”, la atención ayuda a resolver a qué se refiere “ella”.</p></div></details>
+    <details class="card"><summary><span class="t"><h3>Prompt y rol de sistema</h3></span><small>Las instrucciones que guían la respuesta.</small></summary>
+      <div class="more"><p>Los mensajes se estructuran por roles: <code>system</code> (reglas), <code>user</code> (pregunta) y <code>assistant</code> (respuesta). Técnicas como zero‑shot, one‑shot y few‑shot añaden 0, 1 o varios ejemplos.</p><p class="ex">“Actúa como analista de riesgo. Si un dato no está en el documento, escribe NO ENCONTRADO.”</p></div></details>
+    <details class="card"><summary><span class="t"><h3>RAG</h3></span><small>Retrieval‑Augmented Generation: consultar antes de responder.</small></summary>
+      <div class="more"><p>Se busca la información relevante en una base documental (con embeddings) y se entrega al modelo junto con la pregunta. Reduce alucinaciones y permite citar la fuente. No todo proyecto necesita RAG.</p><p class="ex">Asistente que responde sobre circulares de la Superintendencia Financiera citando el numeral exacto.</p></div></details>
+    <details class="card"><summary><span class="t"><h3>Alucinación</h3></span><small>Respuesta segura de sí misma, pero inventada.</small></summary>
+      <div class="more"><p>Ocurre en modelos grandes y pequeños. Aumenta con temperatura alta, contexto insuficiente o preguntas fuera del dominio.</p><p class="ex">Un resumen que menciona clientes o cifras que no existen en la base original. Se mitiga con RAG, temperatura baja y revisión humana por muestreo.</p></div></details>
+    <details class="card"><summary><span class="t"><h3>API key</h3></span><small>La “manilla” del hotel todo incluido.</small></summary>
+      <div class="more"><p>Credencial que da acceso al modelo vía programación y descuenta saldo por tokens. Sin manilla no hay acceso; sin saldo tampoco. Nunca debe quedar escrita en el código ni compartirse.</p><p class="ex">Por API se controlan parámetros que la interfaz de chat no muestra: temperatura, top‑p, max_tokens, timeout.</p></div></details>
+  </div>
+</section>
+
+<section id="parametros">
+  <div class="sechead">
+    <span class="folio">03 · Hiperparámetros de generación</span>
+    <h2>Simulador: temperatura, top‑p y max_tokens</h2>
+    <p class="lead">Mueve los controles y observa cómo cambian las probabilidades del siguiente token. Es una simulación didáctica con valores inventados, pero la fórmula (softmax con temperatura + filtro de núcleo) es la que usan los modelos reales.</p>
+  </div>
+  <div class="sim">
+    <div class="controls">
+      <div class="presets" role="group" aria-label="Configuraciones de ejemplo">
+        <button class="btn" data-preset="fin">Análisis financiero</button>
+        <button class="btn" data-preset="mkt">Campaña de mercadeo</button>
+        <button class="btn" data-preset="ext">Temperatura extrema</button>
+      </div>
+      <div class="ctl"><label for="temp">Temperatura <output id="tempOut">0.20</output></label>
+        <input type="range" id="temp" min="0" max="2" step="0.05" value="0.2">
+        <small>0 = conservador y repetible · 2 = muy creativo, riesgo de alucinar. El rango varía por proveedor (0–1 o 0–2).</small></div>
+      <div class="ctl"><label for="topp">Top‑p <output id="toppOut">1.00</output></label>
+        <input type="range" id="topp" min="0.1" max="1" step="0.05" value="1">
+        <small>Solo se sortean los tokens que juntos suman esta probabilidad. 0.5 descarta la “cola” de opciones raras.</small></div>
+      <div class="ctl"><label for="maxt">max_tokens <output id="maxtOut">60</output></label>
+        <input type="range" id="maxt" min="5" max="80" step="1" value="60">
+        <small>Tope de tokens de salida. Corta la respuesta, no la resume.</small></div>
+      <div class="verdict" id="verdict" aria-live="polite"></div>
+    </div>
+    <div style="display:grid;gap:14px;min-width:0">
+      <div class="prompt">Prompt: “La tasa de interés de este crédito es <b>___</b>”</div>
+      <div class="dist" id="dist"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="sample">Generar 12 respuestas</button><small class="lead" style="font-size:.8rem">En rojo: tokens sin sentido para este contexto.</small></div>
+      <div class="samples" id="samples" aria-live="polite"></div>
+      <div class="maxbox"><div class="eyebrow" style="margin-bottom:4px">Efecto de max_tokens en una respuesta</div><p id="maxText"></p></div>
+    </div>
+  </div>
+
+  <div class="ptable">
+    <table>
+      <thead><tr><th>Parámetro</th><th>Qué controla</th><th>Uso en banca</th></tr></thead>
+      <tbody>
+        <tr><td><code>temperature</code></td><td>Qué tan “plana” es la distribución de probabilidad.</td><td>0–0.2 para cifras, contratos y cumplimiento; 0.7–1 para textos de campañas.</td></tr>
+        <tr><td><code>top_p</code></td><td>Recorta las opciones menos probables (nucleus sampling).</td><td>Junto con temperatura baja, deja solo los tokens de mayor calidad. Se recomienda ajustar uno de los dos, no ambos al extremo.</td></tr>
+        <tr><td><code>max_tokens</code></td><td>Longitud máxima de la salida y, por tanto, el costo.</td><td>Corto para alertas comerciales; largo para actas o informes de auditoría.</td></tr>
+        <tr><td><code>stop</code></td><td>Secuencias donde el modelo deja de escribir.</td><td>Evitar que siga generando después de un JSON o de una plantilla.</td></tr>
+        <tr><td><code>timeout</code></td><td>Tiempo máximo de espera de una llamada.</td><td>Evita que una respuesta lenta rompa un flujo automatizado (n8n, colas de procesamiento).</td></tr>
+        <tr><td><code>response_format</code> / JSON</td><td>Obliga a una salida estructurada.</td><td>Clasificaciones que alimentan directamente un CRM o un tablero.</td></tr>
+        <tr><td><code>seed</code></td><td>Semilla para aumentar la repetibilidad (cuando el proveedor lo soporta).</td><td>Auditar que el mismo insumo dé el mismo resultado.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="opensource">
+  <div class="sechead">
+    <span class="folio">04 · Modelos OpenSource</span>
+    <h2>Modelos abiertos que se pueden descargar y ejecutar en casa</h2>
+    <p class="lead">Un modelo abierto se descarga y se ejecuta en servidores propios, sin enviar datos a terceros. Para un banco esto importa: los datos de clientes no salen de la infraestructura.</p>
+  </div>
+  <div class="callout">
+    <div><b>Open weights (pesos abiertos)</b><span>Se publican los pesos entrenados, pero no necesariamente los datos ni el código de entrenamiento. Es el caso de la mayoría: Llama, Qwen, Gemma, DeepSeek.</span></div>
+    <div><b>Open source completo</b><span>Pesos, código y datos de entrenamiento disponibles para reproducir el modelo. Es menos común.</span></div>
+    <div><b>La licencia manda</b><span>Apache 2.0 y MIT permiten uso comercial amplio. Llama usa una licencia comunitaria propia con condiciones adicionales.</span></div>
+  </div>
+  <div class="filters" role="group" aria-label="Filtrar modelos">
+    <button class="btn" data-f="all" aria-pressed="true">Todos</button>
+    <button class="btn" data-f="local" aria-pressed="false">Corre en un PC o una GPU</button>
+    <button class="btn" data-f="server" aria-pressed="false">Requiere servidor</button>
+    <button class="btn" data-f="permisiva" aria-pressed="false">Licencia Apache/MIT</button>
+  </div>
+  <div class="models" id="models">
+    <article class="model" data-tags="local server permisiva">
+      <header><h3>gpt‑oss</h3><span class="org">OpenAI</span></header>
+      <dl class="specs"><dt>Tamaños</dt><dd>20b (3,6 B activos) · 120b (5,1 B activos)</dd><dt>Contexto</dt><dd>128 K tokens</dd><dt>Licencia</dt><dd>Apache 2.0</dd></dl>
+      <p>Modelos de razonamiento MoE. El de 20b corre en un equipo con 16 GB; el de 120b en una GPU de 80 GB.</p>
+      <p><span class="tag">uso</span> Análisis interno de documentos sin salir a la nube.</p>
+      <a href="https://huggingface.co/openai/gpt-oss-120b" target="_blank" rel="noopener">Ver en Hugging Face ↗</a>
+    </article>
+    <article class="model" data-tags="local server permisiva">
+      <header><h3>Qwen 3</h3><span class="org">Alibaba</span></header>
+      <dl class="specs"><dt>Tamaños</dt><dd>De pocos B hasta 235 B (MoE)</dd><dt>Contexto</dt><dd>Hasta 256 K en versiones recientes</dd><dt>Licencia</dt><dd>Apache 2.0</dd></dl>
+      <p>Familia con la escalera de tamaños más amplia, fuerte en código, herramientas y varios idiomas, incluido el español.</p>
+      <p><span class="tag">uso</span> Clasificadores y agentes con llamadas a herramientas.</p>
+      <a href="https://huggingface.co/Qwen" target="_blank" rel="noopener">Ver en Hugging Face ↗</a>
+    </article>
+    <article class="model" data-tags="server permisiva">
+      <header><h3>DeepSeek V4</h3><span class="org">DeepSeek</span></header>
+      <dl class="specs"><dt>Tamaños</dt><dd>Flash 284 B (13 B activos) · Pro 1,6 T (49 B activos)</dd><dt>Contexto</dt><dd>1 M tokens</dd><dt>Licencia</dt><dd>MIT</dd></dl>
+      <p>Modelos de centro de datos, entre los más fuertes en razonamiento y tareas agénticas de los abiertos.</p>
+      <p><span class="tag">uso</span> Lectura de expedientes muy largos en una sola consulta.</p>
+      <a href="https://huggingface.co/deepseek-ai" target="_blank" rel="noopener">Ver en Hugging Face ↗</a>
+    </article>
+    <article class="model" data-tags="local permisiva">
+      <header><h3>Gemma 4</h3><span class="org">Google</span></header>
+      <dl class="specs"><dt>Tamaños</dt><dd>De 2 B a 31 B (incluye un MoE 26 B)</dd><dt>Contexto</dt><dd>Hasta 128 K–256 K según versión</dd><dt>Licencia</dt><dd>Apache 2.0</dd></dl>
+      <p>Pensado para portátiles, móviles y equipos de borde. Multimodal (texto e imagen).</p>
+      <p><span class="tag">uso</span> Asistentes en el dispositivo del asesor comercial.</p>
+      <a href="https://huggingface.co/google" target="_blank" rel="noopener">Ver en Hugging Face ↗</a>
+    </article>
+    <article class="model" data-tags="server">
+      <header><h3>Llama 4</h3><span class="org">Meta</span></header>
+      <dl class="specs"><dt>Tamaños</dt><dd>Scout 109 B (17 B activos) · Maverick</dd><dt>Contexto</dt><dd>Scout hasta 10 M tokens</dd><dt>Licencia</dt><dd>Llama Community License</dd></dl>
+      <p>Familia que popularizó los modelos abiertos. Nativamente multimodal y con la ventana de contexto más larga.</p>
+      <p><span class="tag">uso</span> Búsqueda en repositorios documentales completos.</p>
+      <a href="https://huggingface.co/meta-llama" target="_blank" rel="noopener">Ver en Hugging Face ↗</a>
+    </article>
+    <article class="model" data-tags="local server permisiva">
+      <header><h3>Mistral</h3><span class="org">Mistral AI (Francia)</span></header>
+      <dl class="specs"><dt>Tamaños</dt><dd>Ministral 3 B · Small 4: 119 B (≈6 B activos)</dd><dt>Contexto</dt><dd>256 K tokens</dd><dt>Licencia</dt><dd>Apache 2.0</dd></dl>
+      <p>Orientado a empresas, multilingüe y multimodal. Opción frecuente cuando se exige proveedor europeo.</p>
+      <p><span class="tag">uso</span> Flujos documentales y atención multilingüe.</p>
+      <a href="https://huggingface.co/mistralai" target="_blank" rel="noopener">Ver en Hugging Face ↗</a>
+    </article>
+  </div>
+  <p class="lead" style="font-size:.85rem">Para probarlos localmente: <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> (un comando para descargar y ejecutar) o la librería <a href="https://huggingface.co/docs/transformers" target="_blank" rel="noopener">Transformers</a> de Hugging Face. Datos de tamaños y licencias según fuentes públicas a 2026; este campo cambia cada mes.</p>
+</section>
+
+<section id="banca">
+  <div class="sechead">
+    <span class="folio">05 · Industria seleccionada</span>
+    <h2>Cuatro aplicaciones en banca y servicios financieros</h2>
+    <p class="lead">Selecciona un caso para ver el problema, cómo lo resuelve el LLM, la configuración recomendada y el riesgo que hay que controlar.</p>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Aplicaciones">
+    <button role="tab" id="t0" aria-selected="true" aria-controls="panel" data-i="0"><b>Lectura de contratos</b><small>Extracción y revisión</small></button>
+    <button role="tab" id="t1" aria-selected="false" aria-controls="panel" data-i="1"><b>Clasificación de PQRS</b><small>Quejas y encuestas</small></button>
+    <button role="tab" id="t2" aria-selected="false" aria-controls="panel" data-i="2"><b>Asistente normativo</b><small>RAG sobre regulación</small></button>
+    <button role="tab" id="t3" aria-selected="false" aria-controls="panel" data-i="3"><b>Apoyo a SARLAFT</b><small>Conocimiento del cliente</small></button>
+  </div>
+  <div class="panel" id="panel" role="tabpanel" aria-live="polite"></div>
+</section>
+
+<section id="riesgos">
+  <div class="sechead">
+    <span class="folio">06 · Riesgos y buenas prácticas</span>
+    <h2>Lo que no se puede olvidar</h2>
+  </div>
+  <div class="rules">
+    <div class="rule"><span class="k">Alucinación</span><h3>Verifica por muestreo</h3><p>Antes de usar un resultado, toma 10 registros al azar y contrástalos con la fuente. Si aparece un cliente o una cifra inexistente, el flujo no está listo.</p></div>
+    <div class="rule"><span class="k">Privacidad</span><h3>No pegues datos de clientes en un chat público</h3><p>Subir información de una empresa a una cuenta personal puede terminar en sanción. En banca aplican la Ley 1581 de 2012 y la reserva bancaria: usa modelos locales o contratos empresariales.</p></div>
+    <div class="rule"><span class="k">Expectativas</span><h3>No prometas 100 % de automatización</h3><p>Un buen caso reduce días a horas, pero siempre con una persona que valida. Prometer más se vuelve en contra del equipo.</p></div>
+    <div class="rule"><span class="k">Costo</span><h3>Mide tokens y licencias</h3><p>Cada llamada consume saldo. Audita qué flujos y licencias se usan de verdad y apaga los que no aportan.</p></div>
+  </div>
+</section>
+
+<section id="recursos">
+  <div class="sechead">
+    <span class="folio">07 · Para profundizar</span>
+    <h2>Recursos</h2>
+  </div>
+  <div class="links">
+    <a href="https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf" target="_blank" rel="noopener"><b>Attention Is All You Need</b><small>Vaswani et al., NeurIPS 2017. Artículo que introdujo el Transformer.</small><span class="u">proceedings.neurips.cc</span></a>
+    <a href="https://developers.openai.com/api/docs/models/gpt-3.5-turbo" target="_blank" rel="noopener"><b>Ficha de GPT‑3.5 Turbo</b><small>Ventana de contexto, tokens de salida y estado de un modelo ya superado.</small><span class="u">developers.openai.com</span></a>
+    <a href="https://jalammar.github.io/illustrated-transformer/" target="_blank" rel="noopener"><b>The Illustrated Transformer</b><small>Explicación visual del mecanismo de atención.</small><span class="u">jalammar.github.io</span></a>
+    <a href="https://huggingface.co/learn/llm-course" target="_blank" rel="noopener"><b>Curso de LLM de Hugging Face</b><small>Gratuito: tokenizadores, Transformers y ajuste fino.</small><span class="u">huggingface.co/learn</span></a>
+    <a href="https://huggingface.co/models" target="_blank" rel="noopener"><b>Repositorio de modelos</b><small>Descarga y compara modelos abiertos.</small><span class="u">huggingface.co/models</span></a>
+    <a href="https://ollama.com" target="_blank" rel="noopener"><b>Ollama</b><small>Ejecuta Qwen, Gemma, Llama, gpt‑oss o DeepSeek en tu equipo.</small><span class="u">ollama.com</span></a>
+    <a href="https://platform.openai.com/tokenizer" target="_blank" rel="noopener"><b>Tokenizer de OpenAI</b><small>Pega un texto y mira cómo se parte en tokens.</small><span class="u">platform.openai.com/tokenizer</span></a>
+    <a href="https://www.superfinanciera.gov.co" target="_blank" rel="noopener"><b>Superintendencia Financiera</b><small>Normativa que alimentaría el asistente regulatorio.</small><span class="u">superfinanciera.gov.co</span></a>
+  </div>
+</section>
+
+<footer>
+  <p>Fuentes de datos de modelos: fichas de Hugging Face y comparativas públicas de modelos de pesos abiertos (2026). Probabilidades y tokens del hero y del simulador son ilustrativos.</p>
+  <p>Estudiante: Carolina Rodríguez Chacón · Docente: Cristian Camilo Tirado Cifuentes</p>
+  <p>Actividad 1 · Sistemas LLM Avanzados · Maestría en Inteligencia Artificial · Universidad de La Salle · Octubre de 2026.</p>
+</footer>
+</div>
+
+<script>
+(function(){
+  // ---------- Simulador ----------
+  const cand=[["fija",3.2],["variable",2.8],["del",1.9],["competitiva",1.6],["alta",1.2],["mensual",1.0],["negociable",0.5],["de",0.3],["morada",-1.4],["galáctica",-2.2],["🍕",-3.0]];
+  const weird=new Set(["morada","galáctica","🍕"]);
+  const $=id=>document.getElementById(id);
+  const temp=$("temp"),topp=$("topp"),maxt=$("maxt");
+  function probs(T){
+    if(T<=0.001){return cand.map((c,i)=>i===0?1:0);}
+    const ex=cand.map(c=>Math.exp(c[1]/T)); const s=ex.reduce((a,b)=>a+b,0); return ex.map(e=>e/s);
+  }
+  function nucleus(p,P){
+    const idx=p.map((v,i)=>i).sort((a,b)=>p[b]-p[a]); const keep=new Set(); let acc=0;
+    for(const i of idx){keep.add(i); acc+=p[i]; if(acc>=P-1e-9) break;}
+    return keep;
+  }
+  function render(){
+    const T=+temp.value,P=+topp.value;
+    $("tempOut").textContent=T.toFixed(2); $("toppOut").textContent=P.toFixed(2); $("maxtOut").textContent=maxt.value;
+    const p=probs(T),keep=nucleus(p,P);
+    const kept=[...keep].reduce((a,i)=>a+p[i],0);
+    $("dist").innerHTML=cand.map((c,i)=>{
+      const out=!keep.has(i); const pp=out?p[i]:p[i]/kept;
+      return `<div class="dr${out?" out":""}${weird.has(c[0])?" weird":""}"><span class="w">${c[0]}</span><span class="bar"><i style="width:${(pp*100).toFixed(1)}%"></i></span><span class="p">${(pp*100).toFixed(1)}%</span></div>`;
+    }).join("");
+    const wp=cand.reduce((a,c,i)=>a+(weird.has(c[0])&&keep.has(i)?p[i]/kept:0),0);
+    const v=$("verdict");
+    if(T<=0.3){v.className="verdict";v.innerHTML="<b>Conservador.</b> Casi siempre elige el token más probable. Ideal para cifras, contratos y respuestas auditables.";}
+    else if(T<=1.0){v.className="verdict mid";v.innerHTML="<b>Equilibrado.</b> Más variedad de redacción. Útil para textos de comunicación; revisar antes de publicar.";}
+    else{v.className="verdict hi";v.innerHTML=`<b>Riesgo alto.</b> Las opciones absurdas suman ${(wp*100).toFixed(1)}% de probabilidad. Así nacen las alucinaciones.${P<1?" El top‑p está recortando parte de esa cola.":" Baja el top‑p para recortarlas."}`;}
+    const words="La tasa de interés de este crédito es fija, del 1,45 % mensual vencido, equivalente a una tasa efectiva anual de 18,85 %. No incluye seguro de vida deudor ni cuota de manejo, que se cobran por separado según el reglamento del producto firmado por el cliente.".split(" ");
+    const n=Math.max(1,Math.round(+maxt.value/1.4)); // ~1,4 tokens por palabra en español
+    $("maxText").innerHTML=n>=words.length?words.join(" ")+' <span class="cut">[fin natural]</span>':words.slice(0,n).join(" ")+' <span class="cut">… [cortado por max_tokens]</span>';
+  }
+  function sample(){
+    const T=+temp.value,P=+topp.value,p=probs(T),keep=nucleus(p,P);
+    const ids=[...keep],tot=ids.reduce((a,i)=>a+p[i],0); const out=[];
+    for(let k=0;k<12;k++){let r=Math.random()*tot,ch=ids[0];for(const i of ids){r-=p[i];if(r<=0){ch=i;break;}}out.push(cand[ch][0]);}
+    $("samples").innerHTML=out.map(w=>`<span class="${weird.has(w)?"weird":""}">${w}</span>`).join("");
+  }
+  [temp,topp,maxt].forEach(el=>el.addEventListener("input",render));
+  $("sample").addEventListener("click",sample);
+  const presets={fin:[0.1,1,60],mkt:[1.0,0.95,40],ext:[2,1,60]};
+  document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>{const [a,c,d]=presets[b.dataset.preset];temp.value=a;topp.value=c;maxt.value=d;render();sample();}));
+  render(); sample();
+
+  // ---------- Filtros de modelos ----------
+  const fb=document.querySelectorAll("[data-f]");
+  fb.forEach(b=>b.addEventListener("click",()=>{
+    fb.forEach(x=>x.setAttribute("aria-pressed",x===b));
+    const f=b.dataset.f;
+    document.querySelectorAll("#models .model").forEach(m=>{m.hidden=!(f==="all"||m.dataset.tags.split(" ").includes(f));});
+  }));
+
+  // ---------- Aplicaciones ----------
+  const apps=[
+    {t:"Lectura y revisión de contratos",
+     prob:"Cada trimestre se revisan cientos de contratos de crédito, garantías y proveedores. Varias personas dedican horas extra a buscar cláusulas, fechas de vencimiento y obligaciones.",
+     how:["El LLM extrae en JSON: partes, montos, tasas, plazos, garantías y cláusulas de penalidad.","Marca en rojo lo que no encuentra en el texto en vez de inventarlo.","Un analista revisa solo los contratos marcados como atípicos."],
+     flow:["PDF del contrato","OCR + tokens","LLM con prompt estricto","JSON validado","Revisión humana"],
+     cfg:["temperature 0–0.1","top_p 1","max_tokens alto","response_format JSON","modelo local (gpt‑oss / Qwen)"],
+     val:["Libera tiempo de personas que hoy trabajan horas extra en la lectura.","Reduce cláusulas pasadas por alto en renovaciones.","Deja trazabilidad: cada dato extraído apunta a su página."],
+     risk:"Una cifra mal extraída se propaga a todo el portafolio. Mitigación: validar formatos (fechas, porcentajes) por código y revisar una muestra aleatoria de 10 contratos por lote."},
+    {t:"Clasificación de PQRS y encuestas",
+     prob:"Llegan cientos de comentarios diarios por app, oficina y call center. Clasificarlos a mano por categoría y subcategoría (cobro no reconocido, demora en desembolso, mala atención en oficina) toma días.",
+     how:["Few‑shot: el prompt incluye ejemplos reales de cada subcategoría.","El modelo devuelve categoría, subcategoría, sentimiento y urgencia.","Los casos de fraude o riesgo reputacional se escalan de inmediato."],
+     flow:["Comentario del cliente","Embeddings + ejemplos","LLM clasificador","Etiquetas JSON","CRM / tablero"],
+     cfg:["temperature 0","few‑shot (5–10 ejemplos)","max_tokens bajo","salida JSON","modelo pequeño (Gemma / Qwen)"],
+     val:["Pasa de revisión manual uno a uno a un tablero diario por categoría.","Detecta temprano patrones (una falla en la app, una oficina con problemas).","Ayuda a cumplir los tiempos de respuesta exigidos al Defensor del Consumidor Financiero."],
+     risk:"Categorías ambiguas o sesgadas. Mitigación: matriz de confusión mensual contra una muestra etiquetada por personas y ajuste de los ejemplos del prompt."},
+    {t:"Asistente normativo con RAG",
+     prob:"Los equipos de producto, riesgo y jurídica consultan constantemente circulares, la Circular Básica Jurídica y manuales internos. Encontrar el numeral correcto lleva tiempo y genera respuestas inconsistentes.",
+     how:["Los documentos se dividen en fragmentos y se indexan con embeddings.","Ante una pregunta, se recuperan los fragmentos relevantes y se entregan al modelo.","La respuesta siempre cita documento y numeral; si no hay fuente, lo dice."],
+     flow:["Pregunta del analista","Búsqueda semántica","Fragmentos relevantes","LLM con contexto","Respuesta + cita"],
+     cfg:["temperature 0.1","top_p 0.9","system: solo responder con la fuente","ventana de contexto 128 K+","RAG sobre base interna"],
+     val:["Respuestas en minutos y con la misma interpretación para todas las áreas.","Reduce el riesgo de lanzar un producto que incumple una norma.","Facilita la capacitación de personal nuevo."],
+     risk:"Normas desactualizadas en el índice. Mitigación: actualizar la base con cada nueva circular y mostrar la fecha de vigencia del documento citado."},
+    {t:"Apoyo al análisis SARLAFT / KYC",
+     prob:"Los analistas de cumplimiento revisan alertas de transacciones inusuales y documentos de vinculación. Redactar el resumen de cada caso consume la mayor parte del tiempo.",
+     how:["El LLM resume el expediente: perfil, actividad económica declarada, transacciones que dispararon la alerta.","Señala inconsistencias entre lo declarado y lo transaccional.","Prepara un borrador del informe; la decisión de reportar sigue siendo humana."],
+     flow:["Alerta del motor transaccional","Expediente del cliente","LLM local","Borrador de informe","Decisión del oficial"],
+     cfg:["temperature 0","modelo on‑premise","sin internet","registro de cada prompt","max_tokens medio"],
+     val:["Los analistas dedican su tiempo al juicio experto, no a la redacción.","Informes más homogéneos ante auditorías.","Atención más rápida de la cola de alertas."],
+     risk:"Datos altamente sensibles y decisiones con efecto legal. Mitigación: solo modelos abiertos ejecutados en la infraestructura del banco, acceso por roles y el LLM nunca decide, solo sugiere."}
+  ];
+  const panel=$("panel"),tabs=document.querySelectorAll('[role=tab]');
+  function show(i){
+    const a=apps[i];
+    tabs.forEach(t=>t.setAttribute("aria-selected",t.dataset.i==i));
+    panel.setAttribute("aria-labelledby","t"+i);
+    panel.innerHTML=`<h3 style="font-size:1.4rem">${a.t}</h3>
+      <div class="cols">
+        <div><h4>Problema</h4><p>${a.prob}</p></div>
+        <div><h4>Cómo ayuda el LLM</h4><ul>${a.how.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+        <div><h4>Valor para el negocio</h4><ul>${a.val.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+      </div>
+      <div style="display:grid;gap:6px"><h4>Flujo</h4><div class="flow">${a.flow.map(x=>`<span>${x}</span>`).join("<i>→</i>")}</div></div>
+      <div style="display:grid;gap:6px"><h4>Configuración sugerida</h4><div class="cfg">${a.cfg.map(x=>`<code>${x}</code>`).join("")}</div></div>
+      <div class="risk"><b>Riesgo y control:</b> ${a.risk}</div>`;
+  }
+  tabs.forEach(t=>t.addEventListener("click",()=>show(+t.dataset.i)));
+  show(0);
+})();
+</script>
+
+</body>
+</html>
